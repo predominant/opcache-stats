@@ -249,12 +249,12 @@ if (isset($_REQUEST['IMG'])) {
 				<?php else: ?>
 					<?php foreach ($values as $k => $v): ?>
 						<tr>
-							<td><?php echo $k; ?></td>
+							<td><?php echo htmlspecialchars($k); ?></td>
 							<td><?php
 							if ($pretty) {
-								echo prettyValue($v, $human_numbers);
+								echo htmlspecialchars(prettyValue($v, $human_numbers));
 							} else {
-								echo $v;
+								echo htmlspecialchars($v);
 							}
 							?></td>
 						</tr>
@@ -513,7 +513,7 @@ if (isset($_REQUEST['IMG'])) {
 </head>
 <body>
 	<header>
-		<h1>PHP Opcache Statistics <span>(PHP v<?php echo phpversion(); ?>, Opcache v<?php echo $opcacheConfig['version']['version']; ?>)</span></h1>
+		<h1>PHP Opcache Statistics <span>(PHP v<?php echo htmlspecialchars(phpversion()); ?>, Opcache v<?php echo htmlspecialchars($opcacheConfig['version']['version']); ?>)</span></h1>
 	</header>
 	<div class="header-border"></div>
 
@@ -542,27 +542,27 @@ if (isset($_REQUEST['IMG'])) {
 					<tr>
 						<td>
 							<span class="green box">&nbsp;</span>
-							Free: <?php echo human_size($memStats['free']); ?> (<?php echo sprintf('%.1f%%', $memStats['free'] * 100 / $memStats['total']); ?>)
+							Free: <?php echo htmlspecialchars(human_size($memStats['free'])); ?> (<?php echo htmlspecialchars(sprintf('%.1f%%', $memStats['free'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td>
 							<span class="green box">&nbsp;</span>
-							Hits: <?php echo $stats['hits']; ?> (<?php echo sprintf('%.1f%%', $stats['hits'] * 100 / $stats['total']); ?>)
+							Hits: <?php echo htmlspecialchars($stats['hits']); ?> (<?php echo htmlspecialchars(sprintf('%.1f%%', $stats['hits'] * 100 / $stats['total'])); ?>)
 						</td>
 					</tr>
 					<tr>
 						<td>
 							<span class="red box">&nbsp;</span>
-							Used: <?php echo human_size($memStats['used']); ?> (<?php echo sprintf('%.1f%%', $memStats['used'] * 100 / $memStats['total']); ?>)
+							Used: <?php echo htmlspecialchars(human_size($memStats['used'])); ?> (<?php echo htmlspecialchars(sprintf('%.1f%%', $memStats['used'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td>
 							<span class="red box">&nbsp;</span>
-							Misses: <?php echo $stats['misses']; ?> (<?php echo sprintf('%.1f%%', $stats['misses'] * 100 / $stats['total']); ?>)
+							Misses: <?php echo htmlspecialchars($stats['misses']); ?> (<?php echo htmlspecialchars(sprintf('%.1f%%', $stats['misses'] * 100 / $stats['total'])); ?>)
 						</td>
 					</tr>
 					<tr>
 						<td>
 							<span class="grey box">&nbsp;</span>
-							Wasted: <?php echo human_size($memStats['wasted']); ?> (<?php echo sprintf('%.1f%%', $memStats['wasted'] * 100 / $memStats['total']); ?>)
+							Wasted: <?php echo htmlspecialchars(human_size($memStats['wasted'])); ?> (<?php echo htmlspecialchars(sprintf('%.1f%%', $memStats['wasted'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td/>
 					</tr>
@@ -590,18 +590,18 @@ if (isset($_REQUEST['IMG'])) {
 						$size += $script['memory_consumption'];
 						?>
 						<tr>
-							<td class="filename"><?php echo $script['full_path']; ?></td>
-							<td class="number"><?php echo $script['hits']; ?></td>
-							<td class="number"><?php echo human_size($script['memory_consumption']); ?></td>
-							<td class="date"><?php echo $script['last_used']; ?></td>
+							<td class="filename"><?php echo htmlspecialchars($script['full_path']); ?></td>
+							<td class="number"><?php echo htmlspecialchars($script['hits']); ?></td>
+							<td class="number"><?php echo htmlspecialchars(human_size($script['memory_consumption'])); ?></td>
+							<td class="date"><?php echo htmlspecialchars($script['last_used']); ?></td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>
 				<tfoot>
 					<tr>
-						<th><?php echo count($opcacheStatus['scripts']); ?> scripts</th>
-						<th><?php echo $hits; ?> Hits (total)</th>
-						<th><?php echo human_size($size); ?> (total)</th>
+						<th><?php echo htmlspecialchars(count($opcacheStatus['scripts'])); ?> scripts</th>
+						<th><?php echo htmlspecialchars($hits); ?> Hits (total)</th>
+						<th><?php echo htmlspecialchars(human_size($size)); ?> (total)</th>
 						<th/>
 					</tr>
 				</tfoot>
