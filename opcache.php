@@ -13,6 +13,24 @@ define('GRAPH_SIZE', 200);
  * ====================================
  */
 
+$knownTypes = array(
+	'buffer_size'=>'bytes',
+	'used_memory'=>'bytes',
+	'free_memory'=>'bytes',
+	'wasted_memory'=>'bytes',
+	'start_time'=>'timestamp',
+	'last_restart_time'=>'timestamp',
+	'blacklist_miss_ratio'=>'percent100',
+	'opcache_hit_rate'=>'percent100',
+	'opcache.memory_consumption'=>'bytes',
+	'opcache.interned_strings_buffer'=>'megabytes',
+	'opcache.max_wasted_percentage'=>'percent',
+	'opcache.force_restart_timeout'=>'seconds',
+	'opcache.revalidate_freq'=>'seconds',
+	'opcache.max_file_size'=>'bytes',
+	'opcache.optimization_level'=>'bitmask',
+);
+
 $opcacheStatus = opcache_get_status();
 $opcacheConfig = opcache_get_configuration();
 
@@ -193,8 +211,8 @@ if (isset($_REQUEST['IMG'])) {
 			break;
 		case 2:
 			// Hits and Misses
-			fill_box($image,  30, $size, 50, -$stats['hits'] * ($size - 21) / $stats['total'], $col_black, $col_green, sprintf("%.1f%%", $stats['hits'] * 100 / $stats['total']));
-			fill_box($image, 130, $size, 50, -max(4, ($stats['total'] - $stats['hits']) * ($size - 21) / $stats['total']), $col_black, $col_red, sprintf("%.1f%%", $stats['misses'] * 100 / $stats['total']));
+			fill_box($image,  30, $size, 50, -$stats['hits'] * ($size - 21) / $stats['total'], $col_black, $col_green, sprintf("%.2f%%", $stats['hits'] * 100 / $stats['total']));
+			fill_box($image, 130, $size, 50, -max(4, ($stats['total'] - $stats['hits']) * ($size - 21) / $stats['total']), $col_black, $col_red, sprintf("%.2f%%", $stats['misses'] * 100 / $stats['total']));
 			break;
 	}
 
@@ -207,9 +225,21 @@ if (isset($_REQUEST['IMG'])) {
 
 } else {
 
-	function prettyValue($v) {
+	function prettyHtml($v) {
+		return nl2br(htmlspecialchars($v));
+	}
+
+	function valueType($v,$name=null) {
+		global $knownTypes;
+		if ($name && isset($knownTypes[$name])) {
+			return $knownTypes[$name];
+		}
+		return gettype($v);
+	}
+
+	function prettyValue($v,$name=null) {
 		$result = $v;
-		switch(gettype($v)) {
+		switch(valueType($v,$name)) {
 			case "boolean":
 				$result = $v ? "True" : "False";
 				break;
@@ -219,18 +249,49 @@ if (isset($_REQUEST['IMG'])) {
 				}
 				break;
 			case "integer":
+				$result = number_format($v);
+				break;
 			case "double":
 			case "float":
+				$result = number_format(floor($v)).'.'.(floor($v)!=$v?substr(abs($v)-floor(abs($v)),2):'0');
+				break;
+			case "bytes":
 				$result = human_size($v);
+				break;
+			case "megabytes":
+				$result = human_size($v*1048576);
+				break;
+			case "timestamp":
+				if ($v) {
+					$result = strftime('%c',$v);
+				}
+				break;
+			case "bitmask":
+				$result = base_convert($v, 10, 2);
+				break;
+			case "seconds":
+				$result = number_format($v).' seconds';
+				break;
+			case "percent":
+				$result = prettyValue($v*100).'%';
+				break;
+			case "percent100":
+				$result = prettyValue($v).'%';
 				break;
 			case "NULL":
 				$result = "NULL";
+				break;
+			case "array":
+				$result = '';
+				foreach ($v as $key=>$val) {
+					$result .= $key.' => '.prettyValue($val,$key)."\n";
+				}
 				break;
 		}
 		return $result;
 	}
 
-	function kvtable($values, $pretty = true, $human_numbers = false) {
+	function kvtable($values, $pretty = true) {
 		?>
 		<table class="alternate data">
 			<thead>
@@ -249,12 +310,12 @@ if (isset($_REQUEST['IMG'])) {
 				<?php else: ?>
 					<?php foreach ($values as $k => $v): ?>
 						<tr>
-							<td><?php echo $k; ?></td>
-							<td><?php
+							<td><?php echo prettyHtml($k); ?></td>
+							<td<?php if (valueType($v,$k)=='timestamp') print ' class="date timestamp" data-timestamp="'.htmlspecialchars($v).'"'; ?>><?php
 							if ($pretty) {
-								echo prettyValue($v, $human_numbers);
+								echo prettyHtml(prettyValue($v,$k));
 							} else {
-								echo $v;
+								echo prettyHtml($v);
 							}
 							?></td>
 						</tr>
@@ -508,12 +569,27 @@ if (isset($_REQUEST['IMG'])) {
 					}
 				};
 			}
+
+			function updateDateString(element) {
+				var timestamp = parseInt(element.getAttribute('data-timestamp'));
+				if (timestamp) {
+					// update the time display taking into account the user's timezone
+					element.innerHTML = (new Date(timestamp*1000)).toLocaleString();
+				}
+			}
+
+			// change date strings to local format and timezone
+			var elements = document.getElementsByClassName('timestamp');
+			for (var t=0; t<elements.length; t++) {
+				updateDateString(elements[t]);
+			}
+
 		});
 	</script>
 </head>
 <body>
 	<header>
-		<h1>PHP Opcache Statistics <span>(PHP v<?php echo phpversion(); ?>, Opcache v<?php echo $opcacheConfig['version']['version']; ?>)</span></h1>
+		<h1>PHP Opcache Statistics <span>(PHP v<?php echo prettyHtml(phpversion()); ?>, Opcache v<?php echo prettyHtml($opcacheConfig['version']['version']); ?>)</span></h1>
 	</header>
 	<div class="header-border"></div>
 
@@ -542,27 +618,27 @@ if (isset($_REQUEST['IMG'])) {
 					<tr>
 						<td>
 							<span class="green box">&nbsp;</span>
-							Free: <?php echo human_size($memStats['free']); ?> (<?php echo sprintf('%.1f%%', $memStats['free'] * 100 / $memStats['total']); ?>)
+							Free: <?php echo prettyHtml(human_size($memStats['free'])); ?> (<?php echo prettyHtml(sprintf('%.2f%%', $memStats['free'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td>
 							<span class="green box">&nbsp;</span>
-							Hits: <?php echo $stats['hits']; ?> (<?php echo sprintf('%.1f%%', $stats['hits'] * 100 / $stats['total']); ?>)
+							Hits: <?php echo prettyHtml(prettyValue($stats['hits'],'hits')); ?> (<?php echo prettyHtml(sprintf('%.2f%%', $stats['hits'] * 100 / $stats['total'])); ?>)
 						</td>
 					</tr>
 					<tr>
 						<td>
 							<span class="red box">&nbsp;</span>
-							Used: <?php echo human_size($memStats['used']); ?> (<?php echo sprintf('%.1f%%', $memStats['used'] * 100 / $memStats['total']); ?>)
+							Used: <?php echo prettyHtml(human_size($memStats['used'])); ?> (<?php echo prettyHtml(sprintf('%.2f%%', $memStats['used'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td>
 							<span class="red box">&nbsp;</span>
-							Misses: <?php echo $stats['misses']; ?> (<?php echo sprintf('%.1f%%', $stats['misses'] * 100 / $stats['total']); ?>)
+							Misses: <?php echo prettyHtml(prettyValue($stats['misses'],'misses')); ?> (<?php echo prettyHtml(sprintf('%.2f%%', $stats['misses'] * 100 / $stats['total'])); ?>)
 						</td>
 					</tr>
 					<tr>
 						<td>
 							<span class="grey box">&nbsp;</span>
-							Wasted: <?php echo human_size($memStats['wasted']); ?> (<?php echo sprintf('%.1f%%', $memStats['wasted'] * 100 / $memStats['total']); ?>)
+							Wasted: <?php echo prettyHtml(human_size($memStats['wasted'])); ?> (<?php echo prettyHtml(sprintf('%.2f%%', $memStats['wasted'] * 100 / $memStats['total'])); ?>)
 						</td>
 						<td/>
 					</tr>
@@ -590,18 +666,18 @@ if (isset($_REQUEST['IMG'])) {
 						$size += $script['memory_consumption'];
 						?>
 						<tr>
-							<td class="filename"><?php echo $script['full_path']; ?></td>
-							<td class="number"><?php echo $script['hits']; ?></td>
-							<td class="number"><?php echo human_size($script['memory_consumption']); ?></td>
-							<td class="date"><?php echo $script['last_used']; ?></td>
+							<td class="filename"><?php echo prettyHtml($script['full_path']); ?></td>
+							<td class="number"><?php echo prettyHtml(prettyValue($script['hits'])); ?></td>
+							<td class="number"><?php echo prettyHtml(human_size($script['memory_consumption'])); ?></td>
+							<td class="date timestamp" data-timestamp="<?php echo htmlspecialchars($script['last_used_timestamp']); ?>"><?php echo prettyHtml($script['last_used']); ?></td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>
 				<tfoot>
 					<tr>
-						<th><?php echo count($opcacheStatus['scripts']); ?> scripts</th>
-						<th><?php echo $hits; ?> Hits (total)</th>
-						<th><?php echo human_size($size); ?> (total)</th>
+						<th><?php echo prettyHtml(prettyValue(count($opcacheStatus['scripts']))); ?> scripts</th>
+						<th><?php echo prettyHtml(prettyValue($hits)); ?> Hits (total)</th>
+						<th><?php echo prettyHtml(human_size($size)); ?> (total)</th>
 						<th/>
 					</tr>
 				</tfoot>
@@ -640,7 +716,7 @@ if (isset($_REQUEST['IMG'])) {
 			<div class="horizontal-padded">
 				<div>
 					<h1>Statistics</h1>
-					<?php kvtable($opcacheStatus['opcache_statistics'], false); ?>
+					<?php kvtable($opcacheStatus['opcache_statistics'], true); ?>
 				</div>
 			</div>
  		</div>
@@ -649,7 +725,7 @@ if (isset($_REQUEST['IMG'])) {
 			<div class="horizontal-padded">
 				<div>
 					<h1>Directives</h1>
-					<?php kvtable($opcacheConfig['directives']); ?>
+					<?php kvtable($opcacheConfig['directives'], true); ?>
 				</div>
 				<div>
 					<h1>Version</h1>
